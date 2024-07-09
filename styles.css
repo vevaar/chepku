@@ -1,0 +1,27 @@
+.custom-pointer {
+  position: absolute;
+  top: -8px;
+  width: 16px;
+  height: 24px;
+  background-color: #ff0000;
+  border-radius: 4px;
+  cursor: grab;
+  z-index: 1000;
+  transition: background-color 0.3s ease;
+}
+
+.custom-pointer:hover {
+  background-color: #ff6600;
+}
+
+.custom-pointer:active {
+  cursor: grabbing;
+}
+
+.start-pointer {
+  left: 0%;
+}
+
+.end-pointer {
+  left: 100%;
+}
