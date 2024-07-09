@@ -1,5 +1,5 @@
 (function() {
-    let startPointer, endPointer, progressBar;
+    let startPointer, endPointer, progressBar, infoDisplay;
     let activeDragPointer = null;
   
     function initializePointers() {
@@ -8,9 +8,11 @@
   
       startPointer = createPointer('start');
       endPointer = createPointer('end');
+      infoDisplay = createInfoDisplay();
   
       progressBar.appendChild(startPointer);
       progressBar.appendChild(endPointer);
+      document.querySelector('.ytp-chrome-bottom').appendChild(infoDisplay);
   
       makeDraggable(startPointer);
       makeDraggable(endPointer);
@@ -21,6 +23,13 @@
       pointer.className = `custom-pointer ${type}-pointer`;
       pointer.style.left = type === 'start' ? '0%' : '100%';
       return pointer;
+    }
+  
+    function createInfoDisplay() {
+      const display = document.createElement('div');
+      display.className = 'custom-info-display';
+      display.innerHTML = '<span class="start-time"></span> | <span class="end-time"></span>';
+      return display;
     }
   
     function makeDraggable(pointer) {
@@ -43,7 +52,7 @@
   
       activeDragPointer.style.left = `${position * 100}%`;
   
-      updateConsole();
+      updateDisplay();
     }
   
     function stopDragging() {
@@ -52,7 +61,7 @@
       document.removeEventListener('mouseup', stopDragging);
     }
   
-    function updateConsole() {
+    function updateDisplay() {
       const video = document.querySelector('video');
       if (!video) return;
   
@@ -60,7 +69,22 @@
       const startTime = parseFloat(startPointer.style.left) / 100 * duration;
       const endTime = parseFloat(endPointer.style.left) / 100 * duration;
   
-      console.log(`Start: ${startTime.toFixed(2)}s, End: ${endTime.toFixed(2)}s`);
+      infoDisplay.querySelector('.start-time').textContent = `Start: ${formatTime(startTime)}`;
+      infoDisplay.querySelector('.end-time').textContent = `End: ${formatTime(endTime)}`;
+    }
+  
+    function formatTime(seconds) {
+      const date = new Date(seconds * 1000);
+      const hh = date.getUTCHours();
+      const mm = date.getUTCMinutes();
+      const ss = date.getSeconds();
+      const ms = date.getMilliseconds();
+  
+      if (hh) {
+        return `${hh}:${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
+      } else {
+        return `${mm}:${ss.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+      }
     }
   
     // Initialize pointers when the video player is ready
