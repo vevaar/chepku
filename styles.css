@@ -3,15 +3,10 @@
   top: -8px;
   width: 16px;
   height: 24px;
-  background-color: #ff0000;
   border-radius: 4px;
   cursor: grab;
   z-index: 1000;
   transition: background-color 0.3s ease;
-}
-
-.custom-pointer:hover {
-  background-color: #ff6600;
 }
 
 .custom-pointer:active {
@@ -46,4 +41,26 @@
   border-radius: 4px;
   font-size: 14px;
   z-index: 1000;
+  display: flex;
+  align-items: center;
+}
+
+.custom-share-button {
+  margin-left: 10px;
+  padding: 5px 10px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.custom-share-button:hover {
+  background-color: #45a049;
+}
+
+.custom-share-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
 }

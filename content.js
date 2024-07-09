@@ -1,5 +1,5 @@
 (function() {
-    let startPointer, endPointer, progressBar, infoDisplay;
+    let startPointer, endPointer, progressBar, infoDisplay, shareButton;
     let activeDragPointer = null;
   
     function initializePointers() {
@@ -9,10 +9,12 @@
       startPointer = createPointer('start');
       endPointer = createPointer('end');
       infoDisplay = createInfoDisplay();
+      shareButton = createShareButton();
   
       progressBar.appendChild(startPointer);
       progressBar.appendChild(endPointer);
       document.querySelector('.ytp-chrome-bottom').appendChild(infoDisplay);
+      infoDisplay.appendChild(shareButton);
   
       makeDraggable(startPointer);
       makeDraggable(endPointer);
@@ -30,6 +32,15 @@
       display.className = 'custom-info-display';
       display.innerHTML = '<span class="start-time"></span> | <span class="end-time"></span>';
       return display;
+    }
+  
+    function createShareButton() {
+      const button = document.createElement('button');
+      button.textContent = 'Share';
+      button.className = 'custom-share-button';
+      button.disabled = true;
+      button.addEventListener('click', shareVideoSection);
+      return button;
     }
   
     function makeDraggable(pointer) {
@@ -71,6 +82,9 @@
   
       infoDisplay.querySelector('.start-time').textContent = `Start: ${formatTime(startTime)}`;
       infoDisplay.querySelector('.end-time').textContent = `End: ${formatTime(endTime)}`;
+  
+      // Enable the share button if both start and end times are set
+      shareButton.disabled = (startTime === 0 && endTime === duration);
     }
   
     function formatTime(seconds) {
@@ -85,6 +99,23 @@
       } else {
         return `${mm}:${ss.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
       }
+    }
+  
+    function shareVideoSection() {
+      const video = document.querySelector('video');
+      if (!video) return;
+  
+      const duration = video.duration;
+      const startTime = Math.floor(parseFloat(startPointer.style.left) / 100 * duration);
+      const endTime = Math.floor(parseFloat(endPointer.style.left) / 100 * duration);
+  
+      const videoUrl = new URL(window.location.href);
+      videoUrl.searchParams.set('t', startTime);
+  
+      console.log('Video Section Share:');
+      console.log(`URL: ${videoUrl.toString()}`);
+      console.log(`Start Time: ${startTime} seconds`);
+      console.log(`End Time: ${endTime} seconds`);
     }
   
     // Initialize pointers when the video player is ready
