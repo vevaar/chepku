@@ -4,6 +4,7 @@
     "version": "1.0",
     "description": "Select a portion of a YouTube video using draggable pointers",
     "permissions": ["activeTab"],
+    "host_permissions": ["http://localhost:3000/"],
     "content_scripts": [
       {
         "matches": ["*://www.youtube.com/*"],

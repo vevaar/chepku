@@ -1,3 +1,4 @@
+// content.js
 (function() {
     let startPointer, endPointer, progressBar, infoDisplay, shareButton;
     let activeDragPointer = null;
@@ -36,10 +37,10 @@
   
     function createShareButton() {
       const button = document.createElement('button');
-      button.textContent = 'Share';
+      button.textContent = 'Trim Video';
       button.className = 'custom-share-button';
       button.disabled = true;
-      button.addEventListener('click', shareVideoSection);
+      button.addEventListener('click', sendVideoInfoToBackend);
       return button;
     }
   
@@ -101,7 +102,7 @@
       }
     }
   
-    function shareVideoSection() {
+    async function sendVideoInfoToBackend() {
       const video = document.querySelector('video');
       if (!video) return;
   
@@ -109,13 +110,39 @@
       const startTime = Math.floor(parseFloat(startPointer.style.left) / 100 * duration);
       const endTime = Math.floor(parseFloat(endPointer.style.left) / 100 * duration);
   
-      const videoUrl = new URL(window.location.href);
-      videoUrl.searchParams.set('t', startTime);
+      const videoUrl = window.location.href;
   
-      console.log('Video Section Share:');
-      console.log(`URL: ${videoUrl.toString()}`);
-      console.log(`Start Time: ${startTime} seconds`);
-      console.log(`End Time: ${endTime} seconds`);
+      try {
+        shareButton.disabled = true;
+        shareButton.textContent = 'Processing...';
+  
+        const response = await fetch('http://localhost:3000/trim-video', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            videoUrl,
+            startTime,
+            endTime,
+          }),
+        });
+  
+        if (!response.ok) {
+          throw new Error('Server response was not ok');
+        }
+  
+        const result = await response.json();
+        console.log('Server response:', result);
+        alert('Video trimming request sent successfully. Check the backend console for progress.');
+  
+      } catch (error) {
+        console.error('Error sending trimming request:', error);
+        alert('An error occurred while sending the trimming request. Please try again.');
+      } finally {
+        shareButton.disabled = false;
+        shareButton.textContent = 'Trim Video';
+      }
     }
   
     // Initialize pointers when the video player is ready
@@ -128,4 +155,3 @@
   
     observer.observe(document.body, { childList: true, subtree: true });
   })();
-  
