@@ -3,7 +3,7 @@
     "name": "YouTube Timeline Selector",
     "version": "1.0",
     "description": "Select a portion of a YouTube video using draggable pointers",
-    "permissions": ["activeTab"],
+    "permissions": ["activeTab", "downloads"],
     "host_permissions": ["http://localhost:3000/"],
     "content_scripts": [
       {

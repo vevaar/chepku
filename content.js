@@ -105,17 +105,17 @@
     async function sendVideoInfoToBackend() {
       const video = document.querySelector('video');
       if (!video) return;
-  
+    
       const duration = video.duration;
       const startTime = Math.floor(parseFloat(startPointer.style.left) / 100 * duration);
       const endTime = Math.floor(parseFloat(endPointer.style.left) / 100 * duration);
-  
+    
       const videoUrl = window.location.href;
-  
+    
       try {
         shareButton.disabled = true;
         shareButton.textContent = 'Processing...';
-  
+    
         const response = await fetch('http://localhost:3000/trim-video', {
           method: 'POST',
           headers: {
@@ -127,15 +127,21 @@
             endTime,
           }),
         });
-  
+    
         if (!response.ok) {
           throw new Error('Server response was not ok');
         }
-  
+    
         const result = await response.json();
         console.log('Server response:', result);
-        alert('Video trimming request sent successfully. Check the backend console for progress.');
-  
+        
+        // Initiate download
+        if (result.filePath) {
+          downloadTrimmedVideo(result.filePath);
+        } else {
+          alert('Video trimmed successfully, but no file path received.');
+        }
+    
       } catch (error) {
         console.error('Error sending trimming request:', error);
         alert('An error occurred while sending the trimming request. Please try again.');
@@ -143,6 +149,24 @@
         shareButton.disabled = false;
         shareButton.textContent = 'Trim Video';
       }
+    }
+
+    function downloadTrimmedVideo(filePath) {
+      const downloadUrl = `http://localhost:3000/download/${filePath}`;
+      
+      // Create a temporary anchor element to trigger the download
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = downloadUrl;
+      a.download = filePath;
+      
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(a);
+      }, 100);
     }
   
     // Initialize pointers when the video player is ready
