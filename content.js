@@ -1,6 +1,6 @@
 // content.js
 (function () {
-  let startPointer, endPointer, progressBar, infoDisplay, shareButton;
+  let startPointer, endPointer, progressBar, infoDisplay, trimButton, videoCheckbox, audioCheckbox;
   let activeDragPointer = null;
 
   function initializePointers() {
@@ -10,17 +10,31 @@
     startPointer = createPointer("start");
     endPointer = createPointer("end");
     infoDisplay = createInfoDisplay();
-    shareButton = createShareButton();
+    trimButton = createTrimButton();
 
     progressBar.appendChild(startPointer);
     progressBar.appendChild(endPointer);
     document.querySelector(".ytp-chrome-bottom").appendChild(infoDisplay);
-    infoDisplay.appendChild(shareButton);
+    infoDisplay.appendChild(trimButton);
 
     makeDraggable(startPointer);
     makeDraggable(endPointer);
+
+    videoCheckbox = infoDisplay.querySelector(".video-checkbox");
+    audioCheckbox = infoDisplay.querySelector(".audio-checkbox");
+
+    videoCheckbox.addEventListener("change", updateTrimButtonState);
+    audioCheckbox.addEventListener("change", updateTrimButtonState);
   }
 
+  function updateTrimButtonState() {
+    const isVideoChecked = videoCheckbox.checked;
+    const isAudioChecked = audioCheckbox.checked;
+    const hasSelection = parseFloat(startPointer.style.left) !== 0 || parseFloat(endPointer.style.left) !== 100;
+
+    trimButton.disabled = !(hasSelection && (isVideoChecked || isAudioChecked));
+    trimButton.textContent = isVideoChecked && isAudioChecked ? "Trim Both" : "Trim";
+  }
   function createPointer(type) {
     const pointer = document.createElement("div");
     pointer.className = `custom-pointer ${type}-pointer`;
@@ -31,20 +45,44 @@
   function createInfoDisplay() {
     const display = document.createElement("div");
     display.className = "custom-info-display";
-    display.innerHTML =
-      '<span class="start-time"></span> | <span class="end-time"></span>';
+    display.innerHTML = `
+      <span class="start-time"></span> | <span class="end-time"></span>
+      <div class="trim-options">
+        <label><input type="checkbox" class="video-checkbox"> Video</label>
+        <label><input type="checkbox" class="audio-checkbox"> Audio</label>
+      </div>
+    `;
     return display;
   }
 
-  function createShareButton() {
+   function createShareButton() {
+     const button = document.createElement("button");
+     button.textContent = "Trim Video";
+     button.className = "custom-share-button";
+     button.disabled = true;
+     button.addEventListener("click", sendVideoInfoToBackend);
+     return button;
+   }
+
+
+
+   function createTrimButton() {
     const button = document.createElement("button");
-    button.textContent = "Trim Video";
-    button.className = "custom-share-button";
+    button.textContent = "Trim";
+    button.className = "custom-trim-button";
     button.disabled = true;
     button.addEventListener("click", sendVideoInfoToBackend);
     return button;
   }
 
+  function updateTrimButtonState() {
+    const isVideoChecked = videoCheckbox.checked;
+    const isAudioChecked = audioCheckbox.checked;
+    const hasSelection = parseFloat(startPointer.style.left) !== 0 || parseFloat(endPointer.style.left) !== 100;
+
+    trimButton.disabled = !(hasSelection && (isVideoChecked || isAudioChecked));
+    trimButton.textContent = isVideoChecked && isAudioChecked ? "Trim Both" : "Trim";
+  }
   function makeDraggable(pointer) {
     pointer.addEventListener("mousedown", startDragging);
   }
@@ -82,15 +120,10 @@
     const startTime = (parseFloat(startPointer.style.left) / 100) * duration;
     const endTime = (parseFloat(endPointer.style.left) / 100) * duration;
 
-    infoDisplay.querySelector(".start-time").textContent = `Start: ${formatTime(
-      startTime
-    )}`;
-    infoDisplay.querySelector(".end-time").textContent = `End: ${formatTime(
-      endTime
-    )}`;
+    infoDisplay.querySelector(".start-time").textContent = `Start: ${formatTime(startTime)}`;
+    infoDisplay.querySelector(".end-time").textContent = `End: ${formatTime(endTime)}`;
 
-    // Enable the share button if both start and end times are set
-    shareButton.disabled = startTime === 0 && endTime === duration;
+    updateTrimButtonState();
   }
 
   function formatTime(seconds) {
@@ -133,20 +166,17 @@
     if (!video) return;
 
     const duration = video.duration;
-    const startTime = Math.floor(
-      (parseFloat(startPointer.style.left) / 100) * duration
-    );
-    const endTime = Math.floor(
-      (parseFloat(endPointer.style.left) / 100) * duration
-    );
+    const startTime = Math.floor((parseFloat(startPointer.style.left) / 100) * duration);
+    const endTime = Math.floor((parseFloat(endPointer.style.left) / 100) * duration);
 
     const videoUrl = window.location.href;
+    const trimVideo = videoCheckbox.checked;
+    const trimAudio = audioCheckbox.checked;
 
     try {
-      shareButton.disabled = true;
-      shareButton.textContent = "Processing...";
+      trimButton.disabled = true;
+      trimButton.textContent = "Processing...";
 
-      // Start listening for progress updates
       startProgressListener();
 
       const response = await fetch("http://localhost:3000/trim-video", {
@@ -158,6 +188,8 @@
           videoUrl,
           startTime,
           endTime,
+          trimVideo,
+          trimAudio,
         }),
       });
 
@@ -169,9 +201,7 @@
       console.log("Trim request sent:", result);
     } catch (error) {
       console.error("Error sending trimming request:", error);
-      updateProgressDisplay(
-        "An error occurred while sending the trimming request. Please try again."
-      );
+      updateProgressDisplay("An error occurred while sending the trimming request. Please try again.");
       stopProgressListener();
     }
   }
@@ -183,8 +213,8 @@
       const data = JSON.parse(event.data);
       if (data.message) {
         updateProgressDisplay(data.message);
-        if (data.message === "Video trimming completed" && data.filePath) {
-          downloadTrimmedVideo(data.filePath);
+        if (data.message === "Trimming completed" && data.filePaths) {
+          downloadTrimmedFiles(data.filePaths);
           stopProgressListener();
         }
       } else if (data.error) {
@@ -199,12 +229,41 @@
     };
   }
 
+ 
   function stopProgressListener() {
     if (progressEventSource) {
       progressEventSource.close();
     }
-    shareButton.disabled = false;
-    shareButton.textContent = "Trim Video";
+    trimButton.disabled = false;
+    trimButton.textContent = "Trim";
+  }
+
+  function downloadTrimmedFiles(filePaths) {
+    if (!filePaths || filePaths.length === 0) {
+      updateProgressDisplay("No files to download.");
+      return;
+    }
+
+    updateProgressDisplay("Preparing downloads...");
+
+    filePaths.forEach((filePath, index) => {
+      setTimeout(() => {
+        const downloadUrl = `http://localhost:3000/download/${filePath}`;
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = downloadUrl;
+        a.download = filePath;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        updateProgressDisplay(`Downloading ${filePath}...`);
+      }, index * 1000); // Stagger downloads by 1 second
+    });
+
+    updateProgressDisplay(
+      `${filePaths.length} file(s) queued for download. Check your downloads folder.`
+    );
   }
 
   function downloadTrimmedVideo(filePath) {

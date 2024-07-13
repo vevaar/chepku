@@ -1,4 +1,4 @@
-// server.js
+// index.js
 const express = require('express');
 const cors = require('cors');
 const { trimVideo } = require('./videoTrimmer');
@@ -12,27 +12,27 @@ app.use(express.json());
 const clients = new Set();
 
 app.post('/trim-video', async (req, res) => {
-  const { videoUrl, startTime, endTime } = req.body;
-  console.log('Received request to trim video:', { videoUrl, startTime, endTime });
+  const { videoUrl, startTime, endTime, trimVideo: shouldTrimVideo, trimAudio } = req.body;
+  console.log('Received request to trim video:', { videoUrl, startTime, endTime, shouldTrimVideo, trimAudio });
 
   // Send initial response
   res.json({ message: 'Video trimming started' });
 
-  const outputFileName = `trimmed_${Date.now()}.mp4`;
+  const outputFileNameBase = `trimmed_${Date.now()}`;
   
   try {
-    const trimmedVideoPath = await trimVideo(videoUrl, startTime, endTime, outputFileName, 
+    const trimmedFilePaths = await trimVideo(videoUrl, startTime, endTime, outputFileNameBase, shouldTrimVideo, trimAudio, 
       (message) => {
         // Send progress updates to all connected clients
         clients.forEach(client => client.res.write(`data: ${JSON.stringify({ message })}\n\n`));
       }
     );
     
-    // Send completion message
-    clients.forEach(client => client.res.write(`data: ${JSON.stringify({ message: 'Video trimming completed', filePath: path.basename(trimmedVideoPath) })}\n\n`));
+    // Send completion message with all file paths
+    clients.forEach(client => client.res.write(`data: ${JSON.stringify({ message: 'Trimming completed', filePaths: trimmedFilePaths })}\n\n`));
   } catch (error) {
-    console.error('Error during video trimming:', error);
-    clients.forEach(client => client.res.write(`data: ${JSON.stringify({ error: 'An error occurred during video trimming' })}\n\n`));
+    console.error('Error during trimming:', error);
+    clients.forEach(client => client.res.write(`data: ${JSON.stringify({ error: 'An error occurred during trimming' })}\n\n`));
   }
 });
 
@@ -63,4 +63,3 @@ app.get('/download/:filename', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
