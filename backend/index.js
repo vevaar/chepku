@@ -8,24 +8,49 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.post('/trim-video', async (req, res) => {
-  try {
-    const { videoUrl, startTime, endTime } = req.body;
-    console.log('Received request to trim video:', { videoUrl, startTime, endTime });
+// Store active SSE connections
+const clients = new Set();
 
-    const outputFileName = `trimmed_${Date.now()}.mp4`;
-    const trimmedVideoPath = await trimVideo(videoUrl, startTime, endTime, outputFileName);
+app.post('/trim-video', async (req, res) => {
+  const { videoUrl, startTime, endTime } = req.body;
+  console.log('Received request to trim video:', { videoUrl, startTime, endTime });
+
+  // Send initial response
+  res.json({ message: 'Video trimming started' });
+
+  const outputFileName = `trimmed_${Date.now()}.mp4`;
+  
+  try {
+    const trimmedVideoPath = await trimVideo(videoUrl, startTime, endTime, outputFileName, 
+      (message) => {
+        // Send progress updates to all connected clients
+        clients.forEach(client => client.res.write(`data: ${JSON.stringify({ message })}\n\n`));
+      }
+    );
     
-    console.log('Video trimming completed. File saved at:', trimmedVideoPath);
-    
-    // Send the file path to the client
-    res.json({ message: 'Video trimming completed', filePath: path.basename(trimmedVideoPath) });
+    // Send completion message
+    clients.forEach(client => client.res.write(`data: ${JSON.stringify({ message: 'Video trimming completed', filePath: path.basename(trimmedVideoPath) })}\n\n`));
   } catch (error) {
     console.error('Error during video trimming:', error);
-    res.status(500).json({ error: 'An error occurred during video trimming' });
+    clients.forEach(client => client.res.write(`data: ${JSON.stringify({ error: 'An error occurred during video trimming' })}\n\n`));
   }
 });
-// New endpoint for downloading the trimmed video
+
+app.get('/progress', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive'
+  });
+
+  const client = { id: Date.now(), res };
+  clients.add(client);
+
+  req.on('close', () => {
+    clients.delete(client);
+  });
+});
+
 app.get('/download/:filename', (req, res) => {
   const { filename } = req.params;
   const filePath = path.join(__dirname, 'output', filename);
